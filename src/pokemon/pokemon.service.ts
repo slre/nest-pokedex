@@ -18,17 +18,11 @@ export class PokemonService {
   async create(createPokemonDto: CreatePokemonDto) {
     createPokemonDto.name = createPokemonDto.name.toLocaleLowerCase();
     try{
-
       const pokemon = await this.pokemonModel.create( createPokemonDto );
       return pokemon;
 
     }catch(error){
-      if (error.code ===11000){
-        throw new BadRequestException(`Pokemon ${ JSON.stringify( error.keyValue)} already exists`)
-      }
-
-      //console.log(error)
-      throw new InternalServerErrorException(`Cant create pokemon , Check server logs`);
+      this.handleExceptions(error);
     }
       
   }
@@ -36,7 +30,7 @@ export class PokemonService {
   findAll() {
     return `This action returns all pokemon`;
   }
-
+  /* FIND ONE  */
   async findOne(term: string) {
     let pokemon : Pokemon;
     if( !isNaN(+term) ){ // If is Number
@@ -59,12 +53,46 @@ export class PokemonService {
     }
     return pokemon;
   }
+  /* UPDATE  */
+  async update(term: string, updatePokemonDto: UpdatePokemonDto) {
 
-  update(id: number, updatePokemonDto: UpdatePokemonDto) {
-    return `This action updates a #${id} pokemon`;
+    const pokemon = await this.findOne( term );
+    //console.log(term,updatePokemonDto );
+    if( updatePokemonDto.name ) updatePokemonDto.name = updatePokemonDto.name.toLocaleLowerCase();
+    
+    /*
+    const updatedPokemon = await pokemon.updateOne( updatePokemonDto, { new:true } ) // { new:true } returns updated object
+    return updatedPokemon;
+    */
+    try{
+      await pokemon.updateOne( updatePokemonDto );
+      return { ...pokemon.toJSON(),...updatePokemonDto }
+    }catch(error){
+      this.handleExceptions(error);
+    }
+
+    
+
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} pokemon`;
+  async remove(id: string) {
+    // const pokemon = await this.findOne(id);
+    // await pokemon.deleteOne();
+
+    //const result = await this.pokemonModel.findByIdAndDelete( id );
+    const { deletedCount } = await this.pokemonModel.deleteOne( { _id:id })
+
+    if( deletedCount === 0 )
+      throw new BadRequestException( `Pokemon with ${id} not found` );
+
+    return;
+  }
+
+
+  private handleExceptions( error : any ){
+    if (error.code ===11000){
+      throw new BadRequestException(`Pokemon ${ JSON.stringify( error.keyValue)} already exists`)
+    }
+    throw new InternalServerErrorException(`Cant update pokemon , Check server logs`);
   }
 }
